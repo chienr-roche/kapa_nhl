@@ -9,9 +9,9 @@ The analysis covers the following modules:
 
 The application note [Longitudinal detection of non-Hodgkin lymphoma ctDNA](https://sequencing.roche.com/content/dam/diagnostics_microsites/sequencing/master-blueprint/en/resources/pdfs/white-papers/longitudinal-detection-of-circulating-tumor-dna-white-paper-mc--11981.pdf) provides an example of the analysis using the KAPA HyperCap Design Share non-Hodgkin lymphoma panel. 
 
-For more information on the KAPA HyperCap Design Share NHL panel, please refer to [https://sequencing.roche.com/global/en/products/group/kapa-hypercap-ds-nhl-panel.html](https://sequencing.roche.com/global/en/products/group/kapa-hypercap-ds-nhl-panel.html)
+For more information on the KAPA HyperCap Design Share NHL panel, please refer to [https://sequencing.roche.com/global/en/products/group/kapa-hypercap-ds-nhl-panel.html](https://sequencing.roche.com/global/en/products/group/kapa-hypercap-ds-nhl-panel.html)  
 
----
+&nbsp;  
 
 ## Usage Tips
 
@@ -34,7 +34,7 @@ change and that such change is not under the control of Roche.
 Therefore, Roche does not warrant and cannot be held liable for the
 results obtained when using the third-party tools described herein._
 
----
+&nbsp;  
 
 ## Prerequisites
 The following tools are used:  
@@ -73,7 +73,7 @@ In addition, the following R packages are required for longitudinal analysis wit
 - optparse
 - BSgenome.Hsapiens (version according to genome choice)
 
----
+&nbsp;  
 
 ## License
 Distributed under Apache License 2.0. See `LICENSE.txt` for more information.
