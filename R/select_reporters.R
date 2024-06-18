@@ -60,12 +60,16 @@ if (is.null(opt$reporters))
 # Read input vcf table from GATK VariantsToTable
 vcf <- read.table(opt$reporters, header=TRUE, sep='\t') 
 
+# get sample name from file name for use with output VCF SAMPLE field
+sample_name <- gsub(".vardict.annot.vcf.table.txt", "", basename(opt$reporters))
+
 # remove samplename from GT columns
 names(vcf) <- gsub(".*\\.GT", "GT", names(vcf))
 names(vcf) <- gsub(".*\\.AD", "AD", names(vcf))
 names(vcf) <- gsub(".*\\.ALD", "ALD", names(vcf))
 names(vcf) <- gsub(".*\\.RD", "RD", names(vcf))
 
+# select only single nucleotide variants
 vcf <- vcf %>% 
     dplyr::mutate_if(is.factor, as.character) %>%
     dplyr::filter(nchar(REF) == 1 & nchar(ALT) == 1) %>%
@@ -201,13 +205,16 @@ write.table(merged, opt$all, sep="\t", col.names=TRUE, row.names=FALSE, quote=FA
 
 # Prepare columns for output vcf file containing final selected reporters
 # Include DP and AF INFO
+# Note: GATK VariantsToTable outputs GT column as REF-ALT. Change to "0/1" for downstream compatibility.
+# Rename the sample column with the actual sample name.
 vcf_dat <- vcf_keep %>% 
     dplyr::mutate(
+        GT = "0/1", 
         INFO = paste0("DP=", DP, ";", "AF=", AF),
         FORMAT = "GT:DP:AF",
         SAMPLE = paste0(GT, ":", DP, ":", AF)
         ) %>% 
-    dplyr::select(CHROM, POS, ID, REF, ALT, QUAL, FILTER, INFO, FORMAT, SAMPLE) 
+    dplyr::select(CHROM, POS, ID, REF, ALT, QUAL, FILTER, INFO, FORMAT, !!sample_name := SAMPLE) 
 
 # vcf header for vardict
 vcf_header <- paste0(
