@@ -28,6 +28,7 @@ suppressPackageStartupMessages({
 option_list <- list(
     make_option(c("--filter_reporters"), type="logical", default=TRUE, help="Filters out reporters using metrics from Vardict. Default=TRUE. Set to FALSE to turn off."),
     make_option(c("--remove_snp"), type="logical", default=TRUE, help="Filters out reporters if annotated with DBSNP_COMMON. Default=TRUE. Set to FALSE to turn off."),
+    make_option(c("--remove_outliers"), type="logical", default=TRUE, help="Filters out reporters identified as outliers."),
     make_option(c("--reporters"), action="store", type="character", default=NULL, help="Input candidate reporter list"),
     make_option(c("--germline"), action="store", type="character", default=NULL, help="Input germline bam file"),
     make_option(c("--followup"), action="store", type="character", default=NULL, help="Input followup bam file"),
@@ -178,7 +179,7 @@ followup_readcounts <- purrr::pmap_dfr(list(
 # Annotation for reporters in blocklist
 blist <- read.table(opt$blocklist, sep="\t", stringsAsFactors=F, header=F)
 
-# Combine vcf entries with germline and followup readcounts
+# Combine vcf entries with germline and followup readcounts into an all reporters table
 merged <- dplyr::bind_cols(vcf, germline_readcounts) %>% 
     dplyr::bind_cols(., followup_readcounts) %>% 
     dplyr::mutate(
@@ -190,12 +191,46 @@ merged <- dplyr::bind_cols(vcf, germline_readcounts) %>%
                             TRUE ~ NA_character_)
     )
 
-# final clean reporters after germline subtraction
+# Clean reporters after germline subtraction and blocklist removal
 vcf_keep <- merged %>% 
     dplyr::filter(
         germline_af < opt$germline_cutoff,
         !blocklist_status %in% "blocklist"
     )
+
+# Remove reporter outliers based on the change in AF% between baseline and followup
+if (opt$remove_outliers) {
+    # Calculate the log fold change
+    # Set followup_af to 0.0001 if followup_af is 0 for calculating logfc
+    vcf_keep <- vcf_keep %>% 
+        mutate(followup_af_new = ifelse(followup_af==0, 0.0001, followup_af)) %>% 
+        mutate(logfc = log10(baseline_af/followup_af_new)) %>% 
+        select(-followup_af_new)
+
+    # Calculate the IQR of logfc
+    Q1 <- quantile(vcf_keep$logfc, 0.25)
+    Q3 <- quantile(vcf_keep$logfc, 0.75)
+    IQR <- Q3 - Q1
+
+    # Define the lower and upper bounds for outliers
+    lower_bound <- Q1 - 3 * IQR
+    upper_bound <- Q3 + 3 * IQR
+
+    vcf_keep <- vcf_keep %>% 
+        mutate(outlier = ifelse(logfc < lower_bound | logfc > upper_bound, 'outlier', ''))
+
+    # Identify outlier reporters
+    outliers = vcf_keep %>% 
+        filter(outlier %in% 'outlier') %>% select(variant_id, outlier)
+
+    # Remove the outliers for final set of selected reporters
+    vcf_keep <- vcf_keep %>%
+        filter(!variant_id %in% outliers$variant_id) %>% 
+        select(-outlier)
+    
+    # Label the outliers in the all reporters merged table for data review
+    merged <- merged %>% left_join(outliers, by="variant_id") 
+} 
 
 # Output final selected reporters
 write.table(vcf_keep, opt$selected, sep="\t", col.names=TRUE, row.names=FALSE, quote=FALSE)
